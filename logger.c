@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <time.h>
+#include <string.h>
 
 #include "logger.h"
 
@@ -11,15 +12,24 @@
  * global logger context
  */
 static logger_ctx_t g_logger = {
-    NULL,
+    .fp = NULL,
 #ifdef DEBUG
-    LOGGER_LEVEL_DEBUG,
+    .level = LOGGER_LEVEL_DEBUG,
 #else
-    LOGGER_LEVEL_INFO,
+    .level = LOGGER_LEVEL_INFO,
 #endif
-    LOGGER_COLOR_ON
+    .fp_level = LOGGER_LEVEL_TRACE,
+    .fd = 0,
+
+
+
+    .with_color = LOGGER_COLOR_ON
 };
 
+logger_ctx_t *logger_get_ctx()
+{
+    return &g_logger;
+}
 #define LOGGER_TIMESTAMP_LEN 20
 static char *format_time(char *buf) {
     time_t now = time(NULL);
@@ -57,13 +67,50 @@ int logger_init(char *filename, uint8_t options) {
 void logger_close() {
     if (NULL != g_logger.fp) {
         fclose(g_logger.fp);
+        g_logger.fp = NULL;
+    }
+    if (g_logger.fd > 0) {
+        close(g_logger.fd);
+        g_logger.fd = 0;
     }
 }
+
+const char * shorten_filename(const char *fname) {
+  char delimiter = '/';
+  const char *cp_head = fname;
+  char *cp = strrchr(cp_head, delimiter);
+  if (cp != NULL) {
+    cp --;
+    while (cp > cp_head && *cp != delimiter) {
+      cp--;
+    }
+    cp++;
+    return cp;
+  }
+  return fname;
+}
+
 
 int logger_printf(uint8_t log_level, const char *color, const char *format, ...) {
     char timestamp[LOGGER_TIMESTAMP_LEN];
     int nwritten = 0;
     va_list arg;
+
+    if (log_level >= g_logger.fp_level) {
+
+        if (g_logger.fd > 0) {
+            int fd = g_logger.fd;
+            format_time(timestamp);
+
+            nwritten += write(fd, timestamp, strlen(timestamp));
+            nwritten += write(fd, " ", strlen(" "));
+            
+            va_start(arg, format);
+            nwritten += vdprintf(fd, format, arg);
+            va_end(arg);
+            return nwritten;
+        }
+    }
 
     if (log_level < g_logger.level) {
         return 0;
@@ -75,12 +122,6 @@ int logger_printf(uint8_t log_level, const char *color, const char *format, ...)
 
     format_time(timestamp);
 
-    if (g_logger.fp) {
-        fprintf(g_logger.fp, "%s ", timestamp);
-        va_start(arg, format);
-        vfprintf(g_logger.fp, format, arg);
-        va_end(arg);
-    }
     fprintf(stdout, "%s ", timestamp);
     va_start(arg, format);
     nwritten += vfprintf(stdout, format, arg);

@@ -21,6 +21,7 @@
  */
 typedef struct logger_ctx_s {
     FILE *fp;
+    int fd;
 
 #define LOGGER_LEVEL_TRACE          0 << 1
 #define LOGGER_LEVEL_DEBUG          1 << 1
@@ -30,6 +31,7 @@ typedef struct logger_ctx_s {
 #define LOGGER_LEVEL_FATAL          5 << 1
 #define LOGGER_LEVEL_MASK           0x07 << 1
     uint8_t level;
+    uint8_t fp_level;
 
 #define LOGGER_COLOR_OFF            1
 #define LOGGER_COLOR_ON             0
@@ -46,6 +48,8 @@ typedef struct logger_ctx_s {
  *   LOGGER_LEVEL_DEBUG, LOGGER_LEVEL_INFO, LOGGER_LEVEL_WARNING, LOGGER_LEVEL_ERROR: define log level
  */
 int logger_init(char *filename, uint8_t options);
+logger_ctx_t *logger_get_ctx();
+const char * shorten_filename(const char *fname);
 
 /**
  * Close logger
@@ -60,23 +64,24 @@ int logger_printf(uint8_t log_level, const char *color, const char *format, ...)
 
 // level file_path:func_name:line_number
 #define LOGGER_PREFIX "[%s] (%s:%s:%d) "
+#define _cast(type, expr) ((type)(expr))
 
 #define logger_trace(format, ...)   \
-    logger_printf(LOGGER_LEVEL_TRACE, LOGGER_COLOR_CYAN, LOGGER_PREFIX format, "TRACE", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
+    logger_printf(LOGGER_LEVEL_TRACE, LOGGER_COLOR_CYAN, LOGGER_PREFIX format, "TRACE", shorten_filename((const char *)__FILE__), __func__, __LINE__, ##__VA_ARGS__)
 
 #define logger_debug(format, ...)   \
-    logger_printf(LOGGER_LEVEL_DEBUG, LOGGER_COLOR_WHITE, LOGGER_PREFIX format, "DEBUG", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
+    logger_printf(LOGGER_LEVEL_DEBUG, LOGGER_COLOR_WHITE, LOGGER_PREFIX format, "DEBUG", shorten_filename((const char *)__FILE__), __func__, __LINE__, ##__VA_ARGS__)
 
 #define logger_info(format, ...)    \
-    logger_printf(LOGGER_LEVEL_INFO, LOGGER_COLOR_GREEN, LOGGER_PREFIX format, "INFO", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
+    logger_printf(LOGGER_LEVEL_INFO, LOGGER_COLOR_GREEN, LOGGER_PREFIX format, "INFO", shorten_filename((const char *)__FILE__), __func__, __LINE__, ##__VA_ARGS__)
 
 #define logger_warn(format, ...)    \
-    logger_printf(LOGGER_LEVEL_WARNING, LOGGER_COLOR_YELLOW, LOGGER_PREFIX format, "WARN", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
+    logger_printf(LOGGER_LEVEL_WARNING, LOGGER_COLOR_YELLOW, LOGGER_PREFIX format, "WARN", shorten_filename((const char *)__FILE__), __func__, __LINE__, ##__VA_ARGS__)
 
 #define logger_error(format, ...)   \
-    logger_printf(LOGGER_LEVEL_ERROR, LOGGER_COLOR_RED, LOGGER_PREFIX format, "ERROR", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
+    logger_printf(LOGGER_LEVEL_ERROR, LOGGER_COLOR_RED, LOGGER_PREFIX format, "ERROR", shorten_filename((const char *)__FILE__), __func__, __LINE__, ##__VA_ARGS__)
 
 #define logger_fatal(format, ...)   \
-    logger_printf(LOGGER_LEVEL_FATAL, LOGGER_COLOR_RED_BOLD, LOGGER_PREFIX format, "FATAL", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
+    logger_printf(LOGGER_LEVEL_FATAL, LOGGER_COLOR_RED_BOLD, LOGGER_PREFIX format, "FATAL", shorten_filename((const char *)__FILE__), __func__, __LINE__, ##__VA_ARGS__)
 
 #endif // !__LOGGER_H
